@@ -160,3 +160,33 @@ MyPromise.prototype.then = function(onFulfilled, onRejected) {
     return this;
 }
 ```
+## 四. 支持链式操作
+我们平时写promise一般都是对应的一组流程化的操作，如这样：<br/>
+`promise.then(f1).then(f2).then(f3)`<br/>
+但是我们之前的版本最多只能注册一个回调，这一节我们就来实现链式操作。
+### 目标<br/>
+使promise支持链式操作
+### 实现<br/>
+想支持链式操作，其实很简单，首先存储回调时要改为使用数组
+```
+self.onFulfilledCallbacks = [];
+self.onRejectedCallbacks = [];
+```
+当然执行回调时，也要改成遍历回调数组执行回调函数
+```
+self.onFulfilledCallbacks.forEach((callback) => callback(self.value));
+```
+最后，then方法也要改一下,只需要在最后一行加一个return this即可，这其实和jQuery链式操作的原理一致，每次调用完方法都返回自身实例，后面的方法也是实例的方法，所以可以继续执行。
+```
+MyPromise.prototype.then = function(onFulfilled, onRejected) {
+    if (this.status === PENDING) {
+        this.onFulfilledCallbacks.push(onFulfilled);
+        this.onRejectedCallbacks.push(onRejected);
+    } else if (this.status === FULFILLED) {
+        onFulfilled(this.value)
+    } else {
+        onRejected(this.error)
+    }
+    return this;
+}
+```
