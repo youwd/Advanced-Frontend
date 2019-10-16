@@ -359,3 +359,209 @@ MyPromise.prototype.catch = function(onRejected) {
 }
 ```
 到此，我们已经可以愉快的使用`promise.then(f1).then(f2).then(f3).catch(errorLog)`来顺序读取文件内容了。
+其实，到支持串行异步任务这一节，我们写的promise在功能上已经基本齐全了，但是还不太规范，比如说一些其他情况的判断等等，这一节我们就比着Promises/A+的规范打磨一下我们写的promise。如果只是想学习promise的核心实现的，这一节看不懂也没关系，因为这一节并没有增加promise的功能，只是使promise更加规范，更加健壮。
+### 目标
+使promise达到Promises/A+规范，通过promises-aplus-tests的完整测试
+
+### 实现
+首先来可以了解一下Promises/A+规范：<br>
+[Promises/A+规范原版](https://promisesaplus.com/)<br>
+[Promises/A+规范中文版](https://segmentfault.com/a/1190000002452115)<br>
+相比上一节代码，本节代码除了在resolvePromise函数里增加了几个其他情况的判断外，其他函数都没有修改。完整promise代码如下：<br>
+```
+const PENDING = "pending";
+const FULFILLED = "fulfilled";
+const REJECTED = "rejected";
+
+function MyPromise(fn) {
+    const self = this;
+    self.value = null;
+    self.error = null;
+    self.status = PENDING;
+    self.onFulfilledCallbacks = [];
+    self.onRejectedCallbacks = [];
+
+    function resolve(value) {
+        if (value instanceof MyPromise) {
+            return value.then(resolve, reject);
+        }
+        if (self.status === PENDING) {
+            setTimeout(() => {
+                self.status = FULFILLED;
+                self.value = value;
+                self.onFulfilledCallbacks.forEach((callback) => callback(self.value));
+            }, 0)
+        }
+    }
+
+    function reject(error) {
+        if (self.status === PENDING) {
+            setTimeout(function() {
+                self.status = REJECTED;
+                self.error = error;
+                self.onRejectedCallbacks.forEach((callback) => callback(self.error));
+            }, 0)
+        }
+    }
+    try {
+        fn(resolve, reject);
+    } catch (e) {
+        reject(e);
+    }
+}
+
+function resolvePromise(bridgepromise, x, resolve, reject) {
+    //2.3.1规范，避免循环引用
+    if (bridgepromise === x) {
+        return reject(new TypeError('Circular reference'));
+    }
+    let called = false;
+    //这个判断分支其实已经可以删除，用下面那个分支代替，因为promise也是一个thenable对象
+    if (x instanceof MyPromise) {
+        if (x.status === PENDING) {
+            x.then(y => {
+                resolvePromise(bridgepromise, y, resolve, reject);
+            }, error => {
+                reject(error);
+            });
+        } else {
+            x.then(resolve, reject);
+        }
+        // 2.3.3规范，如果 x 为对象或者函数
+    } else if (x != null && ((typeof x === 'object') || (typeof x === 'function'))) {
+        try {
+            // 是否是thenable对象（具有then方法的对象/函数）
+            //2.3.3.1 将 then 赋为 x.then
+            let then = x.then;
+            if (typeof then === 'function') {
+            //2.3.3.3 如果 then 是一个函数，以x为this调用then函数，且第一个参数是resolvePromise，第二个参数是rejectPromise
+                then.call(x, y => {
+                    if (called) return;
+                    called = true;
+                    resolvePromise(bridgepromise, y, resolve, reject);
+                }, error => {
+                    if (called) return;
+                    called = true;
+                    reject(error);
+                })
+            } else {
+            //2.3.3.4 如果 then不是一个函数，则 以x为值fulfill promise。
+                resolve(x);
+            }
+        } catch (e) {
+        //2.3.3.2 如果在取x.then值时抛出了异常，则以这个异常做为原因将promise拒绝。
+            if (called) return;
+            called = true;
+            reject(e);
+        }
+    } else {
+        resolve(x);
+    }
+}
+
+MyPromise.prototype.then = function(onFulfilled, onRejected) {
+    const self = this;
+    let bridgePromise;
+    onFulfilled = typeof onFulfilled === "function" ? onFulfilled : value => value;
+    onRejected = typeof onRejected === "function" ? onRejected : error => { throw error };
+    if (self.status === FULFILLED) {
+        return bridgePromise = new MyPromise((resolve, reject) => {
+            setTimeout(() => {
+                try {
+                    let x = onFulfilled(self.value);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            }, 0);
+        })
+    }
+    if (self.status === REJECTED) {
+        return bridgePromise = new MyPromise((resolve, reject) => {
+            setTimeout(() => {
+                try {
+                    let x = onRejected(self.error);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            }, 0);
+        });
+    }
+    if (self.status === PENDING) {
+        return bridgePromise = new MyPromise((resolve, reject) => {
+            self.onFulfilledCallbacks.push((value) => {
+                try {
+                    let x = onFulfilled(value);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+            self.onRejectedCallbacks.push((error) => {
+                try {
+                    let x = onRejected(error);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+}
+MyPromise.prototype.catch = function(onRejected) {
+    return this.then(null, onRejected);
+}
+// 执行测试用例需要用到的代码
+MyPromise.deferred = function() {
+    let defer = {};
+    defer.promise = new MyPromise((resolve, reject) => {
+        defer.resolve = resolve;
+        defer.reject = reject;
+    });
+    return defer;
+}
+try {
+    module.exports = MyPromise
+} catch (e) {}
+```
+我们可以先跑一下测试，需要安装一下测试插件,然后执行测试，测试时注意在加上上面最后的那几行代码才能执行测试用例。
+```
+1.npm i -g promises-aplus-tests
+2.promises-aplus-tests mypromise.js
+```
+运行测试用例可以看到，我们上面写的promise代码通过了完整的Promises/A+规范测试。<br/>
+然后开始分析我们这一节的代码，我们主要在resolvePromise里加了额外的两个判断，第一个是x和bridgePromise是指向相同值时，报出循环引用的错误，使promise符合2.3.1规范，然后我们增加了一个x 为对象或者函数的判断，这一条判断主要对应2.3.3规范，中文规范如图：
+
+![中文规范](https://user-gold-cdn.xitu.io/2018/6/6/163d543d538cc2b5?w=1041&h=588&f=png&s=98459)
+这一条标准对应的其实是thenable对象，什么是thenable对象，只要有then方法就是thenable对象,然后我们实现的时候照着规范实现就可以了。
+```
+else if (x != null && ((typeof x === 'object') || (typeof x === 'function'))) {
+        try {
+            // 是否是thenable对象（具有then方法的对象/函数）
+            //2.3.3.1 将 then 赋为 x.then
+            let then = x.then;
+            if (typeof then === 'function') {
+            //2.3.3.3 如果 then 是一个函数，以x为this调用then函数，且第一个参数是resolvePromise，第二个参数是rejectPromise
+                then.call(x, y => {
+                    if (called) return;
+                    called = true;
+                    resolvePromise(bridgepromise, y, resolve, reject);
+                }, error => {
+                    if (called) return;
+                    called = true;
+                    reject(error);
+                })
+            } else {
+            //2.3.3.4 如果 then不是一个函数，则以x为值fulfill promise。
+                resolve(x);
+            }
+        } catch (e) {
+        //2.3.3.2 如果在取x.then值时抛出了异常，则以这个异常做为原因将promise拒绝。
+            if (called) return;
+            called = true;
+            reject(e);
+        }
+    }
+```
+再写完这个分支的代码后，其实我们已经可以删除`if (x instanceof MyPromise) {}`这个分支的代码，因为promise也是一个thenable对象，完全可以使用上述代码兼容代替。另外，本节代码很多重复代码可以封装优化一下，但是为了看得清晰，并没有进行抽象封装，大家如果觉得重复代码太多的话，可以自行抽象封装。
