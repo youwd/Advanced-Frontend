@@ -565,3 +565,52 @@ else if (x != null && ((typeof x === 'object') || (typeof x === 'function'))) {
     }
 ```
 再写完这个分支的代码后，其实我们已经可以删除`if (x instanceof MyPromise) {}`这个分支的代码，因为promise也是一个thenable对象，完全可以使用上述代码兼容代替。另外，本节代码很多重复代码可以封装优化一下，但是为了看得清晰，并没有进行抽象封装，大家如果觉得重复代码太多的话，可以自行抽象封装。
+## 七. 实现 promise 的all，race，resolve，reject方法
+上一节我们已经实现了一个符合Promises/A+规范的promise，本节我们把一些es6 promise里的常用方法实现一下。<br/>
+### 目标
+实现es6 promise的all，race，resolve，reject方法<br/>
+### 实现
+我们还是在之前的基础上继续往下写：
+```
+MyPromise.all = function(promises) {
+    return new MyPromise(function(resolve, reject) {
+        let result = [];
+        let count = 0;
+        for (let i = 0; i < promises.length; i++) {
+            promises[i].then(function(data) {
+                result[i] = data;
+                if (++count == promises.length) {
+                    resolve(result);
+                }
+            }, function(error) {
+                reject(error);
+            });
+        }
+    });
+}
+
+MyPromise.race = function(promises) {
+    return new MyPromise(function(resolve, reject) {
+        for (let i = 0; i < promises.length; i++) {
+            promises[i].then(function(data) {
+                resolve(data);
+            }, function(error) {
+                reject(error);
+            });
+        }
+    });
+}
+
+MyPromise.resolve = function(value) {
+    return new MyPromise(resolve => {
+        resolve(value);
+    });
+}
+
+MyPromise.reject = function(error) {
+    return new MyPromise((resolve, reject) => {
+        reject(error);
+    });
+}
+```
+其实前几节把promise的主线逻辑实现后，这些方法都不难实现，all的原理就是返回一个promise，在这个promise中给所有传入的promise的then方法中都注册上回调，回调成功了就把值放到结果数组中，所有回调都成功了就让返回的这个promise去reslove，把结果数组返回出去，race和all大同小异，只不过它不会等所有promise都成功，而是谁快就把谁返回出去，resolve和reject的逻辑也很简单，看一下就明白了。
