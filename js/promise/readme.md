@@ -39,3 +39,33 @@ module.exports = MyPromise
 ```
 代码很短，逻辑也非常清晰，在then中注册了这个promise实例的成功回调和失败回调，当promise reslove时，就把异步执行结果赋值给promise实例的value，并把这个值传入成功回调中执行，失败就把异步执行失败原因赋值给promise实例的error，并把这个值传入失败回调并执行。<br/>
 
+## 二. 支持同步任务
+
+es6 promise是支持传入一个异步任务，也可以传入一个同步任务，但是我们的上面基础版代码并不支持同步任务，如果我们这样写就会报错：
+```
+let promise = new Promise((resolve, reject) => {
+    resolve("同步任务执行")
+});
+```
+为什么呢？因为是同步任务，所以当我们的promise实例reslove时，它的then方法还没执行到，所以回调函数还没注册上，这时reslove中调用成功回调肯定会报错的。<br/>
+### 目标<br/>
+使promise支持同步方法<br/>
+### 实现
+```
+function resolve(value) {
+    //利用setTimeout特性将具体执行放到then之后
+    setTimeout(() => {
+        self.value = value;
+        self.onFulfilled(self.value)
+    })
+}
+
+function reject(error) {
+    setTimeout(() => {
+        self.error = error;
+        self.onRejected(self.error)
+    })
+}
+```
+实现很简单，就是在reslove和reject里面用setTimeout进行包裹，使其到then方法执行之后再去执行，这样我们就让promise支持传入同步方法，另外，关于这一点，Promise/A+规范里也明确要求了这一点。<br>
+`2.2.4 onFulfilled or onRejected must not be called until the execution context stack contains only platform code.`<br>
