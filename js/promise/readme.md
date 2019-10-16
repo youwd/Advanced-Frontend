@@ -190,3 +190,172 @@ MyPromise.prototype.then = function(onFulfilled, onRejected) {
     return this;
 }
 ```
+## 五. 支持串行异步任务
+我们上一节实现了链式调用，但是目前then方法里只能传入同步任务，但是我们平常用promise，then方法里一般是异步任务，因为我们用promise主要用来解决一组流程化的异步操作，如下面这样的调取接口获取用户id后，再根据用户id调取接口获取用户余额，获取用户id和获取用户余额都需要调用接口，所以都是异步任务，如何使promise支持串行异步操作呢?<br/>
+```
+getUserId()
+    .then(getUserBalanceById)
+    .then(function (balance) {
+        // do sth 
+    }, function (error) {
+        console.log(error);
+    });
+```
+### 目标<br/>
+使promise支持串行异步操作
+
+### 实现<br/>
+这里为方便讲解我们引入一个常见场景：用promise顺序读取文件内容，场景代码如下：<br>
+```
+let p = new Promise((resolve, reject) => {
+    fs.readFile('../file/1.txt', "utf8", function(err, data) {
+        err ? reject(err) : resolve(data)
+    });
+});
+let f1 = function(data) {
+    console.log(data)
+    return new Promise((resolve, reject) => {
+        fs.readFile('../file/2.txt', "utf8", function(err, data) {
+            err ? reject(err) : resolve(data)
+        });
+    });
+}
+let f2 = function(data) {
+    console.log(data)
+    return new Promise((resolve, reject) => {
+        fs.readFile('../file/3.txt', "utf8", function(err, data) {
+            err ? reject(err) : resolve(data)
+        });
+    });
+}
+let f3 = function(data) {
+    console.log(data);
+}
+let errorLog = function(error) {
+    console.log(error)
+}
+p.then(f1).then(f2).then(f3).catch(errorLog)
+
+//会依次输出
+//this is 1.txt
+//this is 2.txt
+//this is 3.txt
+```
+上面场景，我们读取完1.txt后并打印1.txt内容，再去读取2.txt并打印2.txt内容，再去读取3.txt并打印3.txt内容，而读取文件都是异步操作，所以都是返回一个promise，我们上一节实现的promise可以实现执行完异步操作后执行后续回调，但是本节的回调读取文件内容操作并不是同步的，而是异步的，所以当读取完1.txt后，执行它回调onFulfilledCallbacks里面的f1，f2，f3时，异步操作还没有完成，所以我们本想得到这样的输出：
+```
+this is 1.txt
+this is 2.txt
+this is 3.txt
+```
+但是实际上却会输出
+```
+this is 1.txt
+this is 1.txt
+this is 1.txt
+```
+所以要想实现异步操作串行，我们不能将回调函数都注册在初始promise的onFulfilledCallbacks里面，而要将每个回调函数注册在对应的异步操作promise的onFulfilledCallbacks里面，用读取文件的场景来举例，f1要在p的onFulfilledCallbacks里面，而f2应该在f1里面return的那个Promise的onFulfilledCallbacks里面，因为只有这样才能实现读取完2.txt后才去打印2.txt的结果。<br/>
+
+但是，我们平常写promise一般都是这样写的: `promise.then(f1).then(f2).then(f3)`，一开始所有流程我们就指定好了，而不是在f1里面才去注册f1的回调，f2里面才去注册f2的回调。<br/>
+
+如何既能保持这种链式写法的同时又能使异步操作衔接执行呢？我们其实让then方法最后不再返回自身实例，而是返回一个新的promise即可，我们可以叫它bridgePromise，它最大的作用就是衔接后续操作，我们看下具体实现代码：
+```
+MyPromise.prototype.then = function(onFulfilled, onRejected) {
+    const self = this;
+    let bridgePromise;
+    //防止使用者不传成功或失败回调函数，所以成功失败回调都给了默认回调函数
+    onFulfilled = typeof onFulfilled === "function" ? onFulfilled : value => value;
+    onRejected = typeof onRejected === "function" ? onRejected : error => { throw error };
+    if (self.status === FULFILLED) {
+        return bridgePromise = new MyPromise((resolve, reject) => {
+            setTimeout(() => {
+                try {
+                    let x = onFulfilled(self.value);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        })
+    }
+    if (self.status === REJECTED) {
+        return bridgePromise = new MyPromise((resolve, reject) => {
+            setTimeout(() => {
+                try {
+                    let x = onRejected(self.error);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+    if (self.status === PENDING) {
+        return bridgePromise = new MyPromise((resolve, reject) => {
+            self.onFulfilledCallbacks.push((value) => {
+                try {
+                    let x = onFulfilled(value);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+            self.onRejectedCallbacks.push((error) => {
+                try {
+                    let x = onRejected(error);
+                    resolvePromise(bridgePromise, x, resolve, reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+}
+//catch方法其实是个语法糖，就是只传onRejected不传onFulfilled的then方法
+MyPromise.prototype.catch = function(onRejected) {
+    return this.then(null, onRejected);
+}
+//用来解析回调函数的返回值x，x可能是普通值也可能是个promise对象
+function resolvePromise(bridgePromise, x, resolve, reject) {
+   //如果x是一个promise
+    if (x instanceof MyPromise) {
+        //如果这个promise是pending状态，就在它的then方法里继续执行resolvePromise解析它的结果，直到返回值不是一个pending状态的promise为止
+        if (x.status === PENDING) {
+            x.then(y => {
+                resolvePromise(bridgePromise, y, resolve, reject);
+            }, error => {
+                reject(error);
+            });
+        } else {
+            x.then(resolve, reject);
+        }
+        //如果x是一个普通值，就让bridgePromise的状态fulfilled，并把这个值传递下去
+    } else {
+        resolve(x);
+    }
+}
+```
+首先，为防止使用者不传成功回调函数或不失败回调函数，我们给了默认回调函数，然后无论当前promise是什么状态，我们都返回一个bridgePromise用来衔接后续操作。<br/>
+
+另外执行回调函数时,因为回调函数既可能会返回一个异步的promise也可能会返回一个同步结果，所以我们把直接把回调函数的结果托管给bridgePromise，使用resolvePromise方法来解析回调函数的结果，如果回调函数返回一个promise并且状态还是pending，就在这个promise的then方法中继续解析这个promise reslove传过来的值，如果值还是pending状态的promise就继续解析，直到不是一个异步promise，而是一个正常值就使用bridgePromise的reslove方法将bridgePromise的状态改为fulfilled，并调用onFulfilledCallbacks回调数组中的方法，将该值传入，到此异步操作就衔接上了。<br/>
+
+这里很抽象，我们还是以文件顺序读取的场景画一张图解释一下流程：<br/>
+
+当执行`p.then(f1).then(f2).then(f3)`时:<br/>
+1. 先执行p.then(f1)返回了一个bridgePromise（p2），并在p的onFulfilledCallbacks回调列表中放入一个回调函数，回调函数负责执行f1并且更新p2的状态.
+2. 然后.then(f2)时返回了一个bridgePromise（p3），这里注意其实是p2.then(f2)，因为p.then(f1)时返回了p2。此时在p2的onFulfilledCallbacks回调列表中放入一个回调函数，回调函数负责执行f2并且更新p3的状态.
+3. 然后.then(f3)时返回了一个bridgePromise（p4），并在p3的onFulfilledCallbacks回调列表中放入一个回调函数，回调函数负责执行f3并且更新p4的状态.
+到此，回调关系注册完了，如图所示：
+![演示](https://user-gold-cdn.xitu.io/2018/6/6/163d462a70a813f6?w=1111&h=594&f=png&s=9331)
+4. 然后过了一段时间，p里面的异步操作执行完了，读取到了1.txt的内容，开始执行p的回调函数，回调函数执行f1，打印出1.txt的内容“this is 1.txt”，并将f1的返回值放到resolvePromise中开始解析。resolvePromise一看传入了一个promise对象，promise是异步的啊，得等着呢，于是就在这个promise对象的then方法中继续resolvePromise这个promise对象resolve的结果，一看不是promise对象了，而是一个具体值“this is 2.txt”，于是调用bridgePromise(p2)的reslove方法将bridgePromise(p2)的状态更新为fulfilled，并将“this is 2.txt”传入p2的回调函数中去执行。
+5. p2的回调开始执行，f2拿到传过来的“this is 2.txt”参数开始执行，打印出2.txt的内容，并将f2的返回值放到resolvePromise中开始解析，resolvePromise一看传入了一个promise对象，promise是异步的啊，又得等着呢........后续操作就是不断的重复4,5步直到结束。
+
+到此，reslove这一条线已经我们已经走通，让我们看看reject这一条线，reject其实处理起来很简单:
+1. 首先执行fn及执行注册的回调时都用try-catch包裹，无论哪里有异常都会进入reject分支。
+2. 一旦代码进入reject分支直接将bridge promise设为rejected状态，于是后续都会走reject这个分支，另外如果不传异常处理的onRejected函数，默认就是使用throw error将错误一直往后抛，达到了错误冒泡的目的。
+3. 最后可以实现一个catch函数用来接收错误。
+```
+MyPromise.prototype.catch = function(onRejected) {
+    return this.then(null, onRejected);
+}
+```
+到此，我们已经可以愉快的使用`promise.then(f1).then(f2).then(f3).catch(errorLog)`来顺序读取文件内容了。
