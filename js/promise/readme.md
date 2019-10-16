@@ -69,3 +69,64 @@ function reject(error) {
 ```
 实现很简单，就是在reslove和reject里面用setTimeout进行包裹，使其到then方法执行之后再去执行，这样我们就让promise支持传入同步方法，另外，关于这一点，Promise/A+规范里也明确要求了这一点。<br>
 `2.2.4 onFulfilled or onRejected must not be called until the execution context stack contains only platform code.`<br>
+
+## 三. 支持三种状态
+es6 promise有三种状态：pending(进行中)、fulfilled(已成功)和rejected(已失败)。只有异步操作的结果可以决定当前是哪一种状态，任何操作都无法改变这个状态。promise一旦状态改变，就不会再变。任何时候都可以得到这个结果promise对象的状态改变，只有两种可能：从pending变为fulfilled和从pending变为rejected。只要这两种情况发生，状态就凝固了，不会再变了，会一直保持这个结果，如果改变已经发生了，你再对promise对象添加回调函数，也会立即得到这个结果。<br/>
+### 目标
+1. 实现promise的三种状态。<br/>
+2. 实现promise对象的状态改变，改变只有两种可能：从pending变为fulfilled和从pending变为rejected。<br/>
+3. 实现一旦promise状态改变，再对promise对象添加回调函数，也会立即得到这个结果。<br/>
+### 实现<br/>
+```
+//定义三种状态
+const PENDING = "pending";
+const FULFILLED = "fulfilled";
+const REJECTED = "rejected";
+
+function MyPromise(fn) {
+    let self = this;
+    self.value = null;
+    self.error = null;
+    self.status = PENDING;
+    self.onFulfilled = null;
+    self.onRejected = null;
+
+    function resolve(value) {
+        //如果状态是pending才去修改状态为fulfilled并执行成功逻辑
+        if (self.status === PENDING) {
+            setTimeout(function() {
+                self.status = FULFILLED;
+                self.value = value;
+                self.onFulfilled(self.value);
+            })
+        }
+    }
+
+    function reject(error) {
+        //如果状态是pending才去修改状态为rejected并执行失败逻辑
+        if (self.status === PENDING) {
+            setTimeout(function() {
+                self.status = REJECTED;
+                self.error = error;
+                self.onRejected(self.error);
+            })
+        }
+    }
+    fn(resolve, reject);
+}
+MyPromise.prototype.then = function(onFulfilled, onRejected) {
+    if (this.status === PENDING) {
+        this.onFulfilled = onFulfilled;
+        this.onRejected = onRejected;
+    } else if (this.status === FULFILLED) {
+        //如果状态是fulfilled，直接执行成功回调，并将成功值传入
+        onFulfilled(this.value)
+    } else {
+        //如果状态是rejected，直接执行失败回调，并将失败原因传入
+        onRejected(this.error)
+    }
+    return this;
+}
+module.exports = MyPromise
+```
+首先，我们建立了三种状态"pending","fulfilled","rejected",然后我们在reslove和reject中做判断，只有状态是pending时，才去改变promise的状态，并执行相应操作，另外，我们在then中判断，如果这个promise已经变为"fulfilled"或"rejected"就立刻执行它的回调，并把结果传入。 <br/>

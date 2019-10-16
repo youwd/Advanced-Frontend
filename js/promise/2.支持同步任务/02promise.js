@@ -15,7 +15,7 @@ function ywdPromise(fn) {
 
     function reject(error) {
         setTimeout(() => {
-            self.error;
+            self.error = error;
             self.onRejected(self.error);
         });
 

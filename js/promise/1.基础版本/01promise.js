@@ -11,7 +11,7 @@ function ywdPromise(fn) {
     }
 
     function reject(error) {
-        self.error;
+        self.error = error;
         self.onRejected(self.error);
     }
 
