@@ -14,5 +14,7 @@
 - 2019.10.25 [JS原生面经从初级到高级](https://juejin.im/post/5daeefc8e51d4524f007fb15#heading-19) 原生面经从初级到高级
 - 2019.10.25 [1.5万字概括ES6全部特性](https://juejin.im/post/5d9bf530518825427b27639d)
 - 2019.10.29 [免费书籍汇总](./doc/free-book.md)
+- 2019.10.30 [js/排序算法](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191030)
+
 
 
