@@ -15,6 +15,7 @@
 - 2019.10.25 [1.5万字概括ES6全部特性](https://juejin.im/post/5d9bf530518825427b27639d)
 - 2019.10.29 [免费书籍汇总](./doc/free-book.md)
 - 2019.10.30 [js/排序算法](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191030)
+- 2019.10.30 [js中的继承：ES3、ES5 和 ES6](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191030_1)
 
 
 
