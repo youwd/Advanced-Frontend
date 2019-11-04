@@ -18,6 +18,8 @@
 - 2019.10.30 [js中的继承：ES3、ES5 和 ES6](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191030_1)
 - 2019.10.31 [请介绍下js的数据类型](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191031)
 - 2019.11.01 [Map、Set、WeakMap 和 WeakSet](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191101)
+- 2019.11.04 [ES5/ES6 的继承除了写法以外还有什么区别？](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191104)
+
 
 
 
