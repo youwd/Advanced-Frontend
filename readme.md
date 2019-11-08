@@ -21,7 +21,7 @@
 - 2019.11.04 [ES5/ES6 的继承除了写法以外还有什么区别？](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191104)
 - 2019.11.05 [canvas/使用canvas来绘制图形](https://github.com/youwd/Advanced-Frontend/tree/master/canvas/20191105_1)
 - 2019.11.07 [canvas/G6/G6源码阅读-part1-运行主流程](https://github.com/youwd/Advanced-Frontend/tree/master/canvas/G6/20191107)
-
+- 2019.11.08 [canvas/G6/G6源码阅读-part2-Item与Shape](https://github.com/youwd/Advanced-Frontend/tree/master/canvas/G6/20191108)
 
 
 
