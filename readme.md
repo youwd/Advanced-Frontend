@@ -23,6 +23,7 @@
 - 2019.11.07 [canvas/G6/G6源码阅读-part1-运行主流程](https://github.com/youwd/Advanced-Frontend/tree/master/canvas/G6/20191107)
 - 2019.11.08 [canvas/G6/G6源码阅读-part2-Item与Shape](https://github.com/youwd/Advanced-Frontend/tree/master/canvas/G6/20191108)
 - 2019.11.11 [canvas/G6/G6源码阅读-part3-绘制Paint](https://github.com/youwd/Advanced-Frontend/tree/master/canvas/G6/20191111)
+- 2019.11.11 [JS/小鹿动画学编程/什么是闭包？](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191112)
 
 
 
