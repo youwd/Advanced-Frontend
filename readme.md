@@ -27,6 +27,7 @@
 - 2019.11.13 [JS/设计模式/设计模式之道](https://github.com/youwd/Advanced-Frontend/tree/master/js/design-pattern/20191113)
 - 2019.11.14 [JS/一篇彻底带你搞懂 JS 中的 this 指向问题](https://juejin.im/post/5dcca1566fb9a02b787c4a88)
 - 2019.11.19 [JS/要求设计 LazyMan 类，实现以下功能](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191119)
+- 2019.11.19 [JS/Iterator](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191119_Iterator)
 
 
 
