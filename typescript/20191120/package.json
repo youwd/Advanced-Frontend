@@ -1,0 +1,16 @@
+{
+  "name": "ts-demo",
+  "version": "1.0.0",
+  "description": "原文：https://juejin.im/book/5da08714518825520e6bb810/section/5da0874f518825237369ef68",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "dev": "tsc -w"
+  },
+  "devDependencies": {
+    "typescript": "^3.7.2"
+  },
+  "author": "",
+  "license": "ISC"
+}
