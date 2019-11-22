@@ -30,6 +30,7 @@
 - 2019.11.19 [JS/Iterator](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191119_Iterator)
 - 2019.11.20 [TS/01开始使用ts](https://github.com/youwd/Advanced-Frontend/tree/master/typescript)
 - 2019.11.21 [TS/02基础类型](https://github.com/youwd/Advanced-Frontend/tree/master/typescript)
+- 2019.11.22 [TS/03其他常用类型](https://github.com/youwd/Advanced-Frontend/tree/master/typescript)
 
 
 
