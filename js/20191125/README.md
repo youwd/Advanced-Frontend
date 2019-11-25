@@ -78,6 +78,8 @@ EventEmitter.prototype.emit = function (type, ...args) {
   } else {
     // 只有一个回调则直接执行
     handler.callback.apply(this, args);
+    // 标记的 once: true 的项直接移除
+    if (handler.once) this.removeListener(type, handler);
   }
   return true;
 }
