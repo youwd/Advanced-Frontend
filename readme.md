@@ -32,6 +32,7 @@
 - 2019.11.21 [TS/02基础类型](https://github.com/youwd/Advanced-Frontend/tree/master/typescript)
 - 2019.11.22 [TS/03其他常用类型](https://github.com/youwd/Advanced-Frontend/tree/master/typescript)
 - 2019.11.25 [JS/实现 node 中回调函数的机制](https://github.com/youwd/Advanced-Frontend/tree/master/js/20191125)
+- 2020.05.23 [JS/类与函数式编程](https://github.com/youwd/Advanced-Frontend/tree/master/js/20200523)
 
 
 
